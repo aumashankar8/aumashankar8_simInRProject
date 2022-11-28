@@ -5,6 +5,8 @@
 # Akshay Umashankar
 # au3692
 #-------------------------------
+library(lme4)
+
 #-------------------------------
 source("scripts/rmvnorm.R")
 source("scripts/ols_regression.R")
@@ -90,17 +92,43 @@ jackknife <- function(data, func){
 }
 #------------------------------------------
 
-#Data Generation
+############# Data Generation ################
 
 parameters <- list(
-  N   <- 1000, #1000 L2 Clusters
-  nj  <- 100, #100 individuals per Cluster
-  ICC <- c(0, 0.10, 0.25)
+  J    = 1000, #1000 L2 Clusters
+  nj   = 100, #100 individuals per Cluster
+  ICC  = c(0.10, 0.25),
+  varianceY = 100, #totalVariance
+  mean = 25,
+  d = 0.5
 )
 
-treat <- rep(c(rep(1, nj/2), rep(0, nj/2)), N) #Set up 50 Individuals in treatment and 50 individuals No treatment for 1 cluster
+l1_var <- with(parameters, varianceY*(1-ICC))
+l2_varTotal <- with(parameters, varianceY*ICC)
+gamma1 <- with(parameters, d*sqrt(varianceY))
 
-L2 <- sort(with(parameters, rep(c(1:N), nj)))
-L1 <- with(parameters, rep(c(1:nj), N))
-X <- cbind(L2, L1, treat)
+treat <- with(parameters, c(rep(1, J/2), rep(0, J/2))) #Set up 50 Individuals in treatment and 50 individuals No treatment for 1 cluster
+
+L2_id <- sort(with(parameters, rep(c(1:J), nj)))
+L1_id <- with(parameters, rep(c(1:nj), J))
+X <- cbind(L2_id, L1_id, treat)
+Y_within <- with(parameters, rnorm(J*nj, mean, l1_var))
+l2_varExplained <-  0.25*gamma1^2 
+l2_residual <- l2_varTotal - l2_varExplained
+Y_between <- with(parameters, gamma1 * treat + rnorm(J, 0, sqrt(l2_residual)))
+L2_Y <- Y_between %x% rep(1, nj)
+
+Y <- Y_within + L2_Y
+data <- data.frame(X, Y)
+colnames(data, c("L2_id", "L1_id", "treat", "Y"))
+
+############# Data Analysis ################
+
+#Unconditional
+uncondMonte <- lmer(Y ~ 1 + (1|L2_id), data)
+summary(uncondMonte)
+
+#Conditional Model
+
+
 
