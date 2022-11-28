@@ -90,14 +90,17 @@ jackknife <- function(data, func){
 }
 #------------------------------------------
 
-
 #Data Generation
-#Level 1 (observations)
 
-#Randomly generate X
+parameters <- list(
+  N   <- 1000, #1000 L2 Clusters
+  nj  <- 100, #100 individuals per Cluster
+  ICC <- c(0, 0.10, 0.25)
+)
 
+treat <- rep(c(rep(1, nj/2), rep(0, nj/2)), N) #Set up 50 Individuals in treatment and 50 individuals No treatment for 1 cluster
 
-
-
-#Level 2 (groups)
+L2 <- sort(with(parameters, rep(c(1:N), nj)))
+L1 <- with(parameters, rep(c(1:nj), N))
+cbind(L2, L1, treat)
 
