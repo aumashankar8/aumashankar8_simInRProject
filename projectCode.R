@@ -66,6 +66,31 @@ monteFunction <- function(n, p_x, p_y){
 
 montHelp <- monteFunction(n, p_2bxMonte, p_2byMonte)
 
+#------------------------------------------
+#MSE and Jackknife Functions
+factoryMSE <- function(pop_value){
+  force(pop_value)
+  function(parameter){
+    rowMeans((parameter - pop_value)^2)
+  }
+}
+
+jackknife <- function(data, func){
+  i <- 1
+  biasVec <- c()
+  for (x in 1:length(data[1, 1, ])){
+    dataSub <- data[-i]
+    biasVec <- c(biasVec, mean(sapply(dataSub, func)))
+    i <- i + 1
+  }
+  thetaJack <- mean(biasVec)
+  varJack <- ((length(data)-1)/length(data)) * sum((biasVec - thetaJack)^2)
+  sdJack <- sqrt(varJack)
+  return(sdJack)
+}
+#------------------------------------------
+
+
 #Data Generation
 #Level 1 (observations)
 
