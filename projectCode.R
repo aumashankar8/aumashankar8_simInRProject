@@ -102,5 +102,5 @@ treat <- rep(c(rep(1, nj/2), rep(0, nj/2)), N) #Set up 50 Individuals in treatme
 
 L2 <- sort(with(parameters, rep(c(1:N), nj)))
 L1 <- with(parameters, rep(c(1:nj), N))
-cbind(L2, L1, treat)
+X <- cbind(L2, L1, treat)
 
