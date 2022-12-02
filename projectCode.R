@@ -5,7 +5,9 @@
 # Akshay Umashankar
 # au3692
 #-------------------------------
+## Libraries ##
 library(lme4)
+library(rblimp)
 
 #-------------------------------
 source("scripts/rmvnorm.R")
@@ -54,7 +56,7 @@ monteFunction <- function(n, p_x, p_y){
   
   covMat <- diag(sigmaEMat) %*% corMat %*% diag(sigmaEMat)
   
-  draw <- rmvnorm(n, c(p_2bxMonte$mux, 0), covMat) #DRAWS X1 X2 and E
+  draw <- rmvnorm(n, c(p_x$mux, 0), covMat) #DRAWS X1 X2 and E
   
   beta0 <- p_y$beta0
   Y_method1 <- beta0 + p_y$betaMat[1] * draw[, 1] + p_y$betaMat[2] * draw[, 2] + draw[, NCOL(draw)]
@@ -66,7 +68,7 @@ monteFunction <- function(n, p_x, p_y){
   )
 }
 
-montHelp <- monteFunction(n, p_2bxMonte, p_2byMonte)
+montHelp <- monteFunction(n, p_x, p_y)
 
 #------------------------------------------
 #MSE and Jackknife Functions
@@ -93,6 +95,8 @@ jackknife <- function(data, func){
 #------------------------------------------
 
 ############# Data Generation ################
+coefUnconditional <- c()
+coefConditional <- c()
 
 parameters <- list(
   J    = 1000, #1000 L2 Clusters
@@ -103,32 +107,49 @@ parameters <- list(
   d = 0.5
 )
 
-l1_var <- with(parameters, varianceY*(1-ICC))
-l2_varTotal <- with(parameters, varianceY*ICC)
-gamma1 <- with(parameters, d*sqrt(varianceY))
+dataGenerated <- function(parameters){
+  l1_var <- with(parameters, varianceY*(1-ICC))
+  l2_varTotal <- with(parameters, varianceY*ICC)
+  gamma1 <- with(parameters, d*sqrt(varianceY))
+  
+  treat <- with(parameters, c(rep(1, J/2), rep(0, J/2))) #Set up 50 Individuals in treatment and 50 individuals No treatment for 1 cluster
+  
+  L2_id <- sort(with(parameters, rep(c(1:J), nj)))
+  L1_id <- with(parameters, rep(c(1:nj), J))
+  X <- cbind(L2_id, L1_id, treat)
+  Y_within <- with(parameters, rnorm(J*nj, mean, l1_var))
+  l2_varExplained <-  0.25*gamma1^2 
+  l2_residual <- l2_varTotal - l2_varExplained
+  Y_between <- with(parameters, gamma1 * treat + rnorm(J, 0, sqrt(l2_residual)))
+  L2_Y <- Y_between %x% rep(1, nj)
+  
+  Y <- Y_within + L2_Y
+  data <- data.frame(X, Y)
+  #colnames(data, c("L2_id", "L1_id", "treat", "Y"))
+  return(data)
+}
 
-treat <- with(parameters, c(rep(1, J/2), rep(0, J/2))) #Set up 50 Individuals in treatment and 50 individuals No treatment for 1 cluster
+dataGenerated(parameters)
 
-L2_id <- sort(with(parameters, rep(c(1:J), nj)))
-L1_id <- with(parameters, rep(c(1:nj), J))
-X <- cbind(L2_id, L1_id, treat)
-Y_within <- with(parameters, rnorm(J*nj, mean, l1_var))
-l2_varExplained <-  0.25*gamma1^2 
-l2_residual <- l2_varTotal - l2_varExplained
-Y_between <- with(parameters, gamma1 * treat + rnorm(J, 0, sqrt(l2_residual)))
-L2_Y <- Y_between %x% rep(1, nj)
-
-Y <- Y_within + L2_Y
-data <- data.frame(X, Y)
-colnames(data, c("L2_id", "L1_id", "treat", "Y"))
 
 ############# Data Analysis ################
 
 #Unconditional
 uncondMonte <- lmer(Y ~ 1 + (1|L2_id), data)
-summary(uncondMonte)
+model1 <- summary(uncondMonte)
+coefUnconditional <- c(coefUnconditional, model1$coefficients)
+
 
 #Conditional Model
+condMonte <- lmer(Y ~ 1 + treat + (1|L2_id), data)
+model2 <- summary(condMonte)
+model2$coefficients
+head(data)
+
+############ Replications #################
+
+dataArray <- replicate(dataGenerated(parameters), n = 500)
+
 
 
 
